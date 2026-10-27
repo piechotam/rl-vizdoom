@@ -1,0 +1,10 @@
+[project]
+name = "uzw"
+version = "0.1.0"
+description = "Reinforcement learning agents for ViZDoom deathmatch"
+readme = "README.md"
+requires-python = ">=3.11"
+dependencies = [
+    "numpy>=1.24",
+    "vizdoom>=1.3.2",
+]
