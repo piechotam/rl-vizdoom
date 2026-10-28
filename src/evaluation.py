@@ -10,8 +10,8 @@ from src.agents import Agent
 from src.env import DoomEnv
 from src.metrics import TICS_PER_SECOND, EpisodeMetrics, MetricsCollector
 
-# (num_actions, seed) -> agent
-AgentFactory = Callable[[int, int], Agent]
+# (env, seed) -> agent
+AgentFactory = Callable[[DoomEnv, int], Agent]
 
 
 def run_episode(
@@ -98,7 +98,7 @@ def evaluate(
     collector = MetricsCollector()
     for seed in seeds:
         env.seed(seed)
-        agent = agent_factory(env.num_actions, seed)
+        agent = agent_factory(env, seed)
         for ep in range(1, episodes_per_seed + 1):
             collector.record(run_episode(env, agent, seed=seed, episode=ep))
             if verbose and (ep % 10 == 0 or ep == episodes_per_seed):

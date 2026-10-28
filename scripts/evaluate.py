@@ -8,12 +8,19 @@ from pathlib import Path
 
 sys.path.insert(0, str(Path(__file__).resolve().parent.parent))
 
+import vizdoom as vzd
+
 from src.agents import RandomAgent
 from src.env import DoomEnv
 from src.evaluation import AgentFactory, evaluate
 
 AGENTS: dict[str, AgentFactory] = {
-    "random": lambda num_actions, seed: RandomAgent(num_actions, seed=seed),
+    "random": lambda env, seed: RandomAgent(env.num_actions, seed=seed),
+    "no_attack": lambda env, seed: RandomAgent(
+        env.num_actions,
+        seed=seed,
+        excluded_actions=[env.action_index(vzd.Button.ATTACK)],
+    ),
 }
 
 

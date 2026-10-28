@@ -102,6 +102,11 @@ class DoomEnv:
         """List of all possible actions as button vectors."""
         return self._action_space
 
+    def action_index(self, button: vzd.Button) -> int:
+        """Index of the one-hot action that presses ``button``."""
+        buttons = list(self._game.get_available_buttons())
+        return buttons.index(button) + 1  # index 0 is the no-op
+
     @property
     def frame_skip(self) -> int:
         return self._frame_skip
