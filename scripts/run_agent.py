@@ -14,18 +14,12 @@ from src.evaluation import run_episode
 
 
 def parse_args() -> argparse.Namespace:
-    parser = argparse.ArgumentParser(
-        description="Run an agent in ViZDoom deathmatch"
-    )
+    parser = argparse.ArgumentParser(description="Run an agent in ViZDoom deathmatch")
     parser.add_argument(
         "--episodes", type=int, default=10, help="Number of episodes to run"
     )
-    parser.add_argument(
-        "--visible", action="store_true", help="Show the game window"
-    )
-    parser.add_argument(
-        "--seed", type=int, default=0, help="Policy/environment seed"
-    )
+    parser.add_argument("--visible", action="store_true", help="Show the game window")
+    parser.add_argument("--seed", type=int, default=0, help="Policy/environment seed")
     parser.add_argument(
         "--frame-skip", type=int, default=4, help="Number of tics per action"
     )

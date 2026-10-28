@@ -20,22 +20,22 @@ def main() -> None:
     rng = np.random.default_rng(seed=0)
     total_reward = 0.0
 
-    for step_i in range(20):
+    steps = 0
+    for steps in range(1, 21):
         action = int(rng.integers(env.num_actions))
-        obs, reward, done, info = env.step(action)
+        next_obs, reward, done, info = env.step(action)
         total_reward += reward
 
-        if done:
+        if done or next_obs is None:
             print(
-                f"  Step {step_i + 1}: episode finished | reward={reward:.1f} | info={info}"
+                f"  Step {steps}: episode finished | reward={reward:.1f} | info={info}"
             )
             break
-        else:
-            print(
-                f"  Step {step_i + 1}: obs={obs.shape} | reward={reward:.1f} | info={info}"
-            )
+        print(
+            f"  Step {steps}: obs={next_obs.shape} | reward={reward:.1f} | info={info}"
+        )
 
-    print(f"\nTotal reward over {step_i + 1} steps: {total_reward:.2f}")
+    print(f"\nTotal reward over {steps} steps: {total_reward:.2f}")
     env.close()
     print("✓ DoomEnv test passed")
 
