@@ -22,6 +22,10 @@ class DoomEnv:
     Action space is represented as one-hot vectors (one button at a time). Input
     is the screen buffer, represented as a ``np.ndarray`` with shape
     ``(H, W, C)``.
+
+    ``info`` contains every game variable declared in the config, keyed by its
+    lowercase name (e.g. ``killcount``, ``health``, ``damagecount``), plus
+    ``episode_time`` — tics elapsed since the episode started.
     """
 
     def __init__(
@@ -29,6 +33,7 @@ class DoomEnv:
         config_path: str | Path = _DEFAULT_CONFIG,
         visible: bool = False,
         frame_skip: int = 4,
+        seed: int | None = None,
     ) -> None:
         self._config_path = Path(config_path)
         self._frame_skip = frame_skip
@@ -42,7 +47,11 @@ class DoomEnv:
             self._game.set_ticrate(60)
         else:
             self._game.set_mode(vzd.Mode.PLAYER)
+        if seed is not None:
+            self._game.set_seed(seed)
         self._game.init()
+
+        self._game_variables = list(self._game.get_available_game_variables())
 
         n_buttons = self._game.get_available_buttons_size()
         self._action_space: list[list[int]] = []
@@ -53,6 +62,10 @@ class DoomEnv:
             action = [0] * n_buttons
             action[i] = 1
             self._action_space.append(action)
+
+    def seed(self, seed: int) -> None:
+        """Seed the game engine; takes effect from the next ``reset()``."""
+        self._game.set_seed(seed)
 
     def reset(self) -> np.ndarray:
         """Start a new episode and return the initial observation."""
@@ -73,6 +86,10 @@ class DoomEnv:
 
         return self._get_observation(), reward, False, self._get_info()
 
+    def get_info(self) -> dict:
+        """Current game variables (also valid right after ``reset()``)."""
+        return self._get_info()
+
     def close(self) -> None:
         """Shut down the ViZDoom instance."""
         self._game.close()
@@ -88,6 +105,15 @@ class DoomEnv:
         return self._action_space
 
     @property
+    def frame_skip(self) -> int:
+        return self._frame_skip
+
+    @property
+    def episode_timeout(self) -> int:
+        """Episode length limit in tics."""
+        return self._game.get_episode_timeout()
+
+    @property
     def game(self) -> vzd.DoomGame:
         """Access to the underlying ``DoomGame``."""
         return self._game
@@ -97,30 +123,16 @@ class DoomEnv:
         return np.transpose(state.screen_buffer, (1, 2, 0))
 
     def _get_info(self) -> dict:
-        gv = (
-            self._game.get_state().game_variables
-            if not self._game.is_episode_finished()
-            else None
-        )
-        if gv is not None:
-            return {
-                "kill_count": int(gv[0]),
-                "health": float(gv[1]),
-                "armor": float(gv[2]),
-                "selected_weapon": int(gv[3]),
-                "ammo": int(gv[4]),
-            }
-        # Episode finished — read last known variables via the game object
-        return {
-            "kill_count": self._game.get_game_variable(
-                vzd.GameVariable.KILLCOUNT
-            ),
-            "health": self._game.get_game_variable(vzd.GameVariable.HEALTH),
-            "armor": self._game.get_game_variable(vzd.GameVariable.ARMOR),
-            "selected_weapon": self._game.get_game_variable(
-                vzd.GameVariable.SELECTED_WEAPON
-            ),
-            "ammo": self._game.get_game_variable(
-                vzd.GameVariable.SELECTED_WEAPON_AMMO
-            ),
+        if not self._game.is_episode_finished():
+            values = self._game.get_state().game_variables
+        else:
+            # Episode finished — no state, read last known values directly
+            values = [
+                self._game.get_game_variable(gv) for gv in self._game_variables
+            ]
+        info = {
+            gv.name.lower(): float(value)
+            for gv, value in zip(self._game_variables, values)
         }
+        info["episode_time"] = self._game.get_episode_time()
+        return info
