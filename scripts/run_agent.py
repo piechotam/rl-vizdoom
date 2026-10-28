@@ -10,6 +10,7 @@ sys.path.insert(0, str(Path(__file__).resolve().parent.parent))
 
 from src.agents import RandomAgent
 from src.env import DoomEnv
+from src.evaluation import run_episode
 
 
 def parse_args() -> argparse.Namespace:
@@ -23,7 +24,7 @@ def parse_args() -> argparse.Namespace:
         "--visible", action="store_true", help="Show the game window"
     )
     parser.add_argument(
-        "--seed", type=int, default=None, help="Random seed for reproducibility"
+        "--seed", type=int, default=0, help="Policy/environment seed"
     )
     parser.add_argument(
         "--frame-skip", type=int, default=4, help="Number of tics per action"
@@ -31,32 +32,10 @@ def parse_args() -> argparse.Namespace:
     return parser.parse_args()
 
 
-def run_episode(env: DoomEnv, agent: RandomAgent) -> dict:
-    """Run a single episode and return stats."""
-    obs = env.reset()
-    total_reward = 0.0
-    steps = 0
-
-    while True:
-        action = agent.act(obs)
-        obs, reward, done, info = env.step(action)
-        total_reward += reward
-        steps += 1
-        if done:
-            break
-
-    return {
-        "kill_count": int(info["kill_count"]),
-        "health": float(info["health"]),
-        "survival_tics": steps * env._frame_skip,
-        "total_reward": total_reward,
-    }
-
-
 def main() -> None:
     args = parse_args()
 
-    env = DoomEnv(visible=args.visible, frame_skip=args.frame_skip)
+    env = DoomEnv(visible=args.visible, frame_skip=args.frame_skip, seed=args.seed)
     agent = RandomAgent(num_actions=env.num_actions, seed=args.seed)
 
     print(
@@ -65,13 +44,13 @@ def main() -> None:
     print("=" * 70)
 
     for ep in range(1, args.episodes + 1):
-        stats = run_episode(env, agent)
+        m = run_episode(env, agent, seed=args.seed, episode=ep)
         print(
             f"Episode {ep:3d} | "
-            f"Kills: {stats['kill_count']:2d} | "
-            f"Health: {stats['health']:5.1f} | "
-            f"Survived: {stats['survival_tics']:5d} tics | "
-            f"Reward: {stats['total_reward']:6.1f}"
+            f"Kills: {m.kill_count:2d} | "
+            f"Health: {m.final_health:5.1f} | "
+            f"Survived: {m.survival_time:5d} tics | "
+            f"Reward: {m.total_reward:6.1f}"
         )
 
     env.close()
