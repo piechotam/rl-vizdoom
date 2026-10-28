@@ -11,7 +11,9 @@ dependencies = [
 
 [dependency-groups]
 dev = [
+    "pre-commit>=4.7.0",
     "pyright>=1.1.414",
+    "pytest>=9.2.0",
     "ruff>=0.17.3",
 ]
 
@@ -38,8 +40,12 @@ ignore = ["E501"]
 "scripts/*" = ["E402"]
 
 [tool.pyright]
-include = ["src", "scripts"]
+include = ["src", "scripts", "tests"]
 pythonVersion = "3.11"
 venvPath = "."
 venv = ".venv"
 typeCheckingMode = "standard"
+
+[tool.pytest.ini_options]
+testpaths = ["tests"]
+pythonpath = ["."]
