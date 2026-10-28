@@ -15,3 +15,6 @@ class RandomAgent:
     def act(self, observation: np.ndarray) -> int:
         """Return a uniformly random action index."""
         return int(self.rng.integers(self.num_actions))
+
+    def reset(self) -> None:
+        """Stateless — nothing to reset between episodes."""
