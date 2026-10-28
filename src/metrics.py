@@ -118,18 +118,14 @@ class MetricsCollector:
     def seeds(self) -> list[int]:
         return sorted({m.seed for m in self._episodes})
 
-    def _values(
-        self, field_name: str, episodes: list[EpisodeMetrics]
-    ) -> np.ndarray:
+    def _values(self, field_name: str, episodes: list[EpisodeMetrics]) -> np.ndarray:
         return np.array([getattr(m, field_name) for m in episodes], dtype=float)
 
     def summary(self) -> dict[str, dict[str, float]]:
         """Statistics over all episodes pooled together."""
         if not self._episodes:
             return {}
-        return {
-            f: describe(self._values(f, self._episodes)) for f in _STAT_FIELDS
-        }
+        return {f: describe(self._values(f, self._episodes)) for f in _STAT_FIELDS}
 
     def summary_by_seed(self) -> dict[int, dict[str, dict[str, float]]]:
         """Statistics over episodes, computed separately for each seed."""
@@ -206,7 +202,9 @@ class MetricsCollector:
         # Aggregate: across-seed mean/std/CI + pooled IQM
         stats = self.aggregate_over_seeds()
         pooled = self.summary()
-        print("\nAcross seeds (mean ± std of per-seed means, 95% bootstrap CI; IQM pooled)")
+        print(
+            "\nAcross seeds (mean ± std of per-seed means, 95% bootstrap CI; IQM pooled)"
+        )
         print("─" * 78)
         print(
             f"{'Metric':<25s} {'Mean':>9s} {'Std':>8s} {'CI low':>9s} {'CI high':>9s} {'IQM':>9s}"

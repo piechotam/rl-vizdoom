@@ -72,9 +72,7 @@ class DoomEnv:
         self._game.new_episode()
         return self._get_observation()
 
-    def step(
-        self, action_index: int
-    ) -> tuple[np.ndarray | None, float, bool, dict]:
+    def step(self, action_index: int) -> tuple[np.ndarray | None, float, bool, dict]:
         """Execute an action and return ``(obs, reward, done, info)``."""
         action = self._action_space[action_index]
         reward = self._game.make_action(action, self._frame_skip)
@@ -123,16 +121,15 @@ class DoomEnv:
         return np.transpose(state.screen_buffer, (1, 2, 0))
 
     def _get_info(self) -> dict:
-        if not self._game.is_episode_finished():
-            values = self._game.get_state().game_variables
+        state = self._game.get_state()
+        if state is not None and state.game_variables is not None:
+            values = list(state.game_variables)
         else:
             # Episode finished — no state, read last known values directly
-            values = [
-                self._game.get_game_variable(gv) for gv in self._game_variables
-            ]
+            values = [self._game.get_game_variable(gv) for gv in self._game_variables]
         info = {
             gv.name.lower(): float(value)
-            for gv, value in zip(self._game_variables, values)
+            for gv, value in zip(self._game_variables, values, strict=True)
         }
         info["episode_time"] = self._game.get_episode_time()
         return info

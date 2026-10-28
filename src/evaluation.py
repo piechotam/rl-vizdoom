@@ -30,7 +30,7 @@ def run_episode(
     while True:
         action = agent.act(obs)
         action_counts[action] += 1
-        obs, reward, done, info = env.step(action)
+        next_obs, reward, done, info = env.step(action)
         total_reward += reward
 
         # Ammo deltas are only comparable when the weapon did not change
@@ -50,8 +50,9 @@ def run_episode(
                 )
             )
         prev = info
-        if done:
+        if done or next_obs is None:
             break
+        obs = next_obs
 
     kills = int(info["killcount"])
     died = bool(info["dead"]) or info["health"] <= 0
@@ -101,5 +102,7 @@ def evaluate(
         for ep in range(1, episodes_per_seed + 1):
             collector.record(run_episode(env, agent, seed=seed, episode=ep))
             if verbose and (ep % 10 == 0 or ep == episodes_per_seed):
-                print(f"  seed {seed}: [{ep:>{len(str(episodes_per_seed))}d}/{episodes_per_seed}] done")
+                print(
+                    f"  seed {seed}: [{ep:>{len(str(episodes_per_seed))}d}/{episodes_per_seed}] done"
+                )
     return collector
