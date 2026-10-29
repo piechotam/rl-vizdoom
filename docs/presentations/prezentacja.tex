@@ -140,8 +140,8 @@
         Potwory pojawiają się losowo co kilka sekund i atakują gracza.
       \end{infocard}
       \begin{infocard}{\faTrophy}{Nagroda}
-        Za każde zabójstwo; wartość zależy od trudności potwora
-        (np.~3 zabójstwa $\rightarrow$ 8 pkt).
+        \textbf{Rzadka}, tylko za zabójstwa; wartość zależy od potwora
+        (np.~3 zabójstwa $\rightarrow$ 8 pkt). Gra nie nakłada kar.
       \end{infocard}
       \begin{infocard}{\faGamepad}{Akcje}
         17 przycisków: ruch, obrót, strafe, sprint, strzał, wybór broni.
@@ -161,6 +161,50 @@
 
 % ============================================================
 \renewcommand{\slidenum}{02}
+\begin{frame}{Funkcja nagrody}
+  \begin{columns}[T,onlytextwidth]
+    \begin{column}{0.47\textwidth}
+      {\small\textbf{Nagroda z gry (ViZDoom)}\par}
+      \vspace{2mm}
+      \begin{infocard}{\faPlusCircle}{Tylko za zabójstwa}
+        Punkty za zabitego potwora (więcej za silniejsze), poza tym 0.
+        Sygnał \textbf{rzadki}: 48\% epizodów agenta losowego bez punktu.
+      \end{infocard}
+      \begin{infocard}{\faMinusCircle}{Gra nie nakłada kar}
+        Śmierć, obrażenia i~zmarnowana amunicja kosztują 0~pkt.
+      \end{infocard}
+      \begin{infocard}{\faExclamationTriangle}{Pułapka}
+        Liczą się też potwory zabite przez \textbf{inne potwory}.
+      \end{infocard}
+    \end{column}
+    \begin{column}{0.49\textwidth}
+      {\small\textbf{Nasze kształtowanie nagrody (plan)}\par}
+      {\scriptsize\color{muted}dodajemy brakujące kary i~nagrody pośrednie; wagi wstępne\par}
+      \vspace{2mm}
+      \footnotesize
+      \renewcommand{\arraystretch}{1.35}
+      \begin{tabular}{@{}l>{\raggedleft\arraybackslash}p{0.3\linewidth}@{}}
+        \toprule
+        \textbf{Składnik} & \textbf{Waga} \\
+        \midrule
+        nagroda gry za zabójstwa & bez zmian \\
+        trafienie przeciwnika (\texttt{HITCOUNT}) & $+0{,}1$ \\
+        utrata zdrowia & $-0{,}01$ / HP \\
+        strzał bez trafienia & $-0{,}01$ \\
+        zebranie apteczki / amunicji & $+0{,}05$ \\
+        śmierć & $-1$ \\
+        \bottomrule
+      \end{tabular}
+
+      \vspace{3mm}
+      {\scriptsize\color{muted}\faInfoCircle\hspace{1.5mm}Kształtowana nagroda służy tylko
+      do uczenia. Ewaluacja zawsze na \textbf{oryginalnej} nagrodzie i~metrykach z~protokołu.\par}
+    \end{column}
+  \end{columns}
+\end{frame}
+
+% ============================================================
+\renewcommand{\slidenum}{03}
 \begin{frame}{Wejście dla agenta}
   \begin{columns}[T,onlytextwidth]
     \begin{column}{0.44\textwidth}
@@ -209,7 +253,7 @@
 \end{frame}
 
 % ============================================================
-\renewcommand{\slidenum}{03}
+\renewcommand{\slidenum}{04}
 \begin{frame}{Konfiguracja środowiska}
   \vspace{2mm}
   \small
@@ -230,7 +274,7 @@
 \end{frame}
 
 % ============================================================
-\renewcommand{\slidenum}{04}
+\renewcommand{\slidenum}{05}
 \begin{frame}{Agent losowy -- demo}
   \centering
   \begin{tikzpicture}[node distance=3mm]
@@ -255,7 +299,7 @@
 \end{frame}
 
 % ============================================================
-\renewcommand{\slidenum}{05}
+\renewcommand{\slidenum}{06}
 \begin{frame}{Agent losowy -- wyniki}
   \vspace{-2mm}
   \begin{columns}[T,onlytextwidth]
@@ -320,7 +364,39 @@
 \end{frame}
 
 % ============================================================
-\renewcommand{\slidenum}{06}
+\renewcommand{\slidenum}{07}
+\begin{frame}{Punkty odniesienia (baseline)}
+  \vspace{1mm}
+  \footnotesize
+  \renewcommand{\arraystretch}{1.3}
+  \begin{tabular}{@{}>{\raggedright\arraybackslash}p{0.2\textwidth}>{\raggedright\arraybackslash}p{0.42\textwidth}>{\raggedleft\arraybackslash}p{0.11\textwidth}>{\raggedleft\arraybackslash}p{0.11\textwidth}@{}}
+    \toprule
+    \textbf{Baseline} & \textbf{Rola} & \textbf{Zabójstwa} & \textbf{Przeżycie} \\
+    \midrule
+    \textcolor{accent}{\faDice}\hspace{1.5mm}\textbf{Losowy}
+      & dolna granica, główny punkt odniesienia & 1,09 & 17,9\,s \\
+    \textcolor{control}{\faBan}\hspace{1.5mm}\textbf{Bez strzelania}
+      & ile zabójstw ,,daje'' samo środowisko (potwory zabijają się nawzajem)
+      & 0,94 & 20,4\,s \\
+    \textcolor{muted}{\faCogs}\hspace{1.5mm}\textbf{Skryptowy}
+      & prosta heurystyka: obrót + ciągły strzał; czy RL bije regułę? & \textcolor{muted}{plan} & \textcolor{muted}{plan} \\
+    \textcolor{muted}{\faUser}\hspace{1.5mm}\textbf{Człowiek}
+      & orientacyjna górna granica, kilka epizodów w~tych samych warunkach & \textcolor{muted}{plan} & \textcolor{muted}{plan} \\
+    \bottomrule
+  \end{tabular}
+
+  \vspace{4mm}
+  \begin{tcolorbox}[enhanced, colback=accentsoft, colframe=accentsoft, arc=2mm,
+      left=3mm, right=3mm, top=1.2mm, bottom=1.2mm, before skip=0pt, after skip=0pt,
+      fontupper=\footnotesize]
+    \textcolor{accent}{\faLightbulb}\hspace{2mm}Agent RL musi pobić \textbf{oba} zmierzone baseline'y.
+    Przewaga nad agentem \textbf{bez strzelania} pokazuje, że zabójstwa są zasługą agenta,
+    a~nie walk między potworami.
+  \end{tcolorbox}
+\end{frame}
+
+% ============================================================
+\renewcommand{\slidenum}{08}
 \begin{frame}{Protokół ewaluacji}
   \begin{columns}[T,onlytextwidth]
     \begin{column}{0.48\textwidth}
@@ -354,7 +430,42 @@
 \end{frame}
 
 % ============================================================
-\renewcommand{\slidenum}{07}
+\renewcommand{\slidenum}{09}
+\begin{frame}{Oczekiwany poziom działania}
+  \vspace{1mm}
+  \footnotesize
+  \renewcommand{\arraystretch}{1.35}
+  \begin{tabular}{@{}>{\raggedright\arraybackslash}p{0.3\textwidth}>{\raggedleft\arraybackslash}p{0.15\textwidth}>{\raggedleft\arraybackslash}p{0.2\textwidth}>{\raggedleft\arraybackslash}p{0.2\textwidth}@{}}
+    \toprule
+    \textbf{Metryka (średnio na epizod)} & \textbf{Losowy}
+      & \textcolor{accent}{\textbf{Cel pośredni}} & \textcolor{accent}{\textbf{Cel końcowy}} \\
+    \midrule
+    Zabójstwa & 1,09 & $\geq 3$ & $\geq 8$ \\
+    Przeżycie & 17,9\,s & $\geq 40$\,s & $\geq 60$\,s \\
+    Epizody do limitu czasu & 0\% & $> 0\%$ & $\geq 25\%$ \\
+    Zabójstwa ponad agenta bez strzelania & $+0{,}15$ & $\geq +2$ & $\geq +7$ \\
+    \bottomrule
+  \end{tabular}
+
+  \vspace{4mm}
+  \begin{columns}[T,onlytextwidth]
+    \begin{column}{0.48\textwidth}
+      \begin{infocard}{\faFlag}{Cel pośredni}\raggedright
+        Agent świadomie celuje i~strzela. 95\% przedziały ufności
+        rozłączne z~obu zmierzonymi baseline'ami.
+      \end{infocard}
+    \end{column}
+    \begin{column}{0.48\textwidth}
+      \begin{infocard}{\faFlagCheckered}{Cel końcowy}\raggedright
+        Agent zabija regularnie, unika obrażeń i~część epizodów
+        dotrwa do limitu 4200 tików ($\approx$\,2~min).
+      \end{infocard}
+    \end{column}
+  \end{columns}
+\end{frame}
+
+% ============================================================
+\renewcommand{\slidenum}{10}
 \begin{frame}{Plan dalszej pracy}
   \vspace{14mm}
   \begin{tikzpicture}[x=1cm,y=1cm]
@@ -364,8 +475,8 @@
         1.3/1/Pipeline/{wrapper, metryki,\\ewaluacja, testy, CI},
         4.05/0/Preprocessing/{60\,$\times$\,45, stos klatek,\\kształtowanie nagrody},
         6.8/0/Agent DQN/{CNN +\\replay buffer},
-        9.55/0/Cel pośredni/{istotnie lepszy\\od agenta losowego},
-        12.3/0/Cel końcowy/{skuteczne zabijanie\\i dłuższe przeżycie}} {
+        9.55/0/Cel pośredni/{$\geq 3$ zabójstwa,\\przeżycie $\geq 40$\,s},
+        12.3/0/Cel końcowy/{$\geq 8$ zabójstw,\\$\geq 25\%$ do limitu czasu}} {
       \ifnum\done=1
         \fill[accent] (\x,0) circle (2.2mm);
         \node[text=white,font=\tiny] at (\x,0) {\faCheck};
