@@ -27,3 +27,6 @@ results/*
 *.snm
 *.toc
 *.synctex.gz
+
+# macOS
+.DS_Store
