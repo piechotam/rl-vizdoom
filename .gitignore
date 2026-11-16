@@ -13,9 +13,18 @@ wheels/
 *.lmp
 _vizdoom.ini
 
-# Evaluation results (only .gitkeep is committed)
-results/*
+# Training/evaluation results: commit CSV, JSON, plots and best checkpoints only
+results/**/*
+!results/**/
 !results/.gitkeep
+!results/**/*.csv
+!results/**/*.json
+!results/**/*.png
+!results/**/*.pdf
+!results/**/best.pt
+
+# TensorBoard logs, training logs, intermediate checkpoints
+runs/
 
 # LaTeX build artifacts
 *.aux
