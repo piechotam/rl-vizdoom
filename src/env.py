@@ -7,6 +7,9 @@ from pathlib import Path
 import numpy as np
 import vizdoom as vzd
 
+from src.actions import ACTION_NAMES, ACTIONS, build_button_vectors
+from src.game_state import enemy_flags
+
 # Default config path relative to this file
 _DEFAULT_CONFIG = (
     Path(__file__).resolve().parent.parent / "scenarios" / "deathmatch.cfg"
@@ -19,13 +22,15 @@ class DoomEnv:
     Exposes ``reset()``, ``step(action)``, and ``close()`` matching the
     standard RL environment interface.
 
-    Action space is represented as one-hot vectors (one button at a time). Input
-    is the screen buffer, represented as a ``np.ndarray`` with shape
-    ``(H, W, C)``.
+    The action space is the fixed list of 31 button combinations from
+    ``src.actions.ACTIONS``. Input is the screen buffer, represented as a
+    ``np.ndarray`` with shape ``(H, W, C)``.
 
     ``info`` contains every game variable declared in the config, keyed by its
     lowercase name (e.g. ``killcount``, ``health``, ``damagecount``), plus
-    ``episode_time`` — tics elapsed since the episode started.
+    ``episode_time`` — tics elapsed since the episode started. With
+    ``labels=True`` it also has ``enemy_visible`` and ``enemy_in_crosshair``
+    (0/1, from the labels buffer; see ``src.game_state``).
     """
 
     def __init__(
@@ -34,9 +39,12 @@ class DoomEnv:
         visible: bool = False,
         frame_skip: int = 4,
         seed: int | None = None,
+        skill: int | None = None,
+        labels: bool = False,
     ) -> None:
         self._config_path = Path(config_path)
         self._frame_skip = frame_skip
+        self._labels = labels
 
         self._game = vzd.DoomGame()
         self._game.load_config(str(self._config_path))
@@ -49,19 +57,16 @@ class DoomEnv:
             self._game.set_mode(vzd.Mode.PLAYER)
         if seed is not None:
             self._game.set_seed(seed)
+        if skill is not None:
+            self._game.set_doom_skill(skill)
+        self._game.set_labels_buffer_enabled(labels)
         self._game.init()
 
         self._game_variables = list(self._game.get_available_game_variables())
 
-        n_buttons = self._game.get_available_buttons_size()
-        self._action_space: list[list[int]] = []
-        # no-op
-        self._action_space.append([0] * n_buttons)
-        # one-hot actions
-        for i in range(n_buttons):
-            action = [0] * n_buttons
-            action[i] = 1
-            self._action_space.append(action)
+        self._action_space = build_button_vectors(
+            list(self._game.get_available_buttons())
+        )
 
     def seed(self, seed: int) -> None:
         """Seed the game engine; takes effect from the next ``reset()``."""
@@ -94,7 +99,7 @@ class DoomEnv:
 
     @property
     def num_actions(self) -> int:
-        """Total number of discrete actions (one-hot buttons + no-op)."""
+        """Total number of discrete actions."""
         return len(self._action_space)
 
     @property
@@ -102,10 +107,14 @@ class DoomEnv:
         """List of all possible actions as button vectors."""
         return self._action_space
 
-    def action_index(self, button: vzd.Button) -> int:
-        """Index of the one-hot action that presses ``button``."""
-        buttons = list(self._game.get_available_buttons())
-        return buttons.index(button) + 1  # index 0 is the no-op
+    @property
+    def action_names(self) -> tuple[str, ...]:
+        """Labels of the actions, e.g. ``"TURN_LEFT+ATTACK"``."""
+        return ACTION_NAMES
+
+    def actions_with(self, button: vzd.Button) -> list[int]:
+        """Indices of every action that presses ``button``."""
+        return [i for i, action in enumerate(ACTIONS) if button.name in action]
 
     @property
     def frame_skip(self) -> int:
@@ -137,4 +146,11 @@ class DoomEnv:
             for gv, value in zip(self._game_variables, values, strict=True)
         }
         info["episode_time"] = self._game.get_episode_time()
+        if self._labels:
+            labels = (state.labels if state is not None else None) or []
+            info |= enemy_flags(
+                labels,
+                self._game.get_screen_width(),
+                self._game.get_screen_height(),
+            )
         return info

@@ -8,6 +8,7 @@ import numpy as np
 import pytest
 import vizdoom as vzd
 
+from src.actions import ACTIONS
 from src.agents import RandomAgent
 from src.env import DoomEnv
 from src.evaluation import evaluate, run_episode
@@ -32,33 +33,57 @@ def test_reset_returns_screen(env):
 
 
 def test_action_space(env):
-    # no-op + one action per button
-    assert env.num_actions == env.game.get_available_buttons_size() + 1
-    assert not any(env.action_space[0])
-    assert all(sum(a) == 1 for a in env.action_space[1:])
+    assert env.num_actions == len(ACTIONS) == 31
+    assert not any(env.action_space[0])  # NOOP
+    assert len({tuple(a) for a in env.action_space}) == env.num_actions
+    buttons = [b.name for b in env.game.get_available_buttons()]
+    for vector, action in zip(env.action_space, ACTIONS, strict=True):
+        assert {buttons[i] for i, v in enumerate(vector) if v} == set(action)
 
 
-def test_action_index_presses_button(env):
-    idx = env.action_index(vzd.Button.ATTACK)
-    buttons = list(env.game.get_available_buttons())
-    assert env.action_space[idx][buttons.index(vzd.Button.ATTACK)] == 1
+def test_actions_with_attack(env):
+    attack = env.actions_with(vzd.Button.ATTACK)
+    assert len(attack) == 10
+    assert all("ATTACK" in env.action_names[i] for i in attack)
 
 
 def test_no_attack_agent_never_shoots(env):
-    attack = env.action_index(vzd.Button.ATTACK)
-    agent = RandomAgent(env.num_actions, seed=0, excluded_actions=[attack])
-    actions = {agent.act(np.zeros(1)) for _ in range(2000)}
-    assert attack not in actions
-    assert len(actions) == env.num_actions - 1
+    attack = env.actions_with(vzd.Button.ATTACK)
+    agent = RandomAgent(env.num_actions, seed=0, excluded_actions=attack)
+    actions = {agent.act(np.zeros(1), {}) for _ in range(5000)}
+    assert actions.isdisjoint(attack)
+    assert len(actions) == env.num_actions - len(attack)
     env.seed(0)
-    assert run_episode(env, agent).shots_fired == 0
+    m = run_episode(env, agent)
+    assert m.shots_fired == 0
+    assert m.hits == 0
+    assert m.attributed_kills == 0
+
+
+def test_skill_is_applied():
+    env = DoomEnv(skill=1)
+    try:
+        assert env.game.get_doom_skill() == 1
+        env.reset()
+        assert env.get_info()["health"] > 0
+    finally:
+        env.close()
 
 
 def test_info_contains_game_variables(env):
     env.reset()
     _, _, done, info = env.step(0)
     assert not done
-    for key in ("killcount", "health", "armor", "dead", "episode_time"):
+    for key in (
+        "killcount",
+        "health",
+        "armor",
+        "dead",
+        "episode_time",
+        "hitcount",
+        "damagecount",
+        "ammo2",
+    ):
         assert key in info
     assert info["health"] > 0
 
@@ -85,3 +110,20 @@ def test_different_seeds_differ(env):
     episodes = evaluate(env, random_agent, [0, 1], 1, verbose=False).episodes
     a, b = (asdict(m) | {"seed": 0} for m in episodes)
     assert a != b
+
+
+def test_labels_add_enemy_flags():
+    env = DoomEnv(visible=False, frame_skip=4, seed=2, labels=True)
+    try:
+        env.reset()
+        seen = 0.0
+        for _ in range(200):
+            _, _, done, info = env.step(7)  # keep turning right
+            assert info["enemy_visible"] in (0.0, 1.0)
+            assert info["enemy_in_crosshair"] <= info["enemy_visible"]
+            seen += info["enemy_visible"]
+            if done:
+                break
+        assert seen > 0  # a full turn shows at least one monster
+    finally:
+        env.close()

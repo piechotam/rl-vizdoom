@@ -9,6 +9,7 @@ import numpy as np
 from src.agents import Agent
 from src.env import DoomEnv
 from src.metrics import TICS_PER_SECOND, EpisodeMetrics, MetricsCollector
+from src.reward import KillAttribution, ammo_collected, shots_fired
 
 # (env, seed) -> agent
 AgentFactory = Callable[[DoomEnv, int], Agent]
@@ -21,25 +22,22 @@ def run_episode(
     agent.reset()
     obs = env.reset()
     prev = env.get_info()
+    attribution = KillAttribution()
 
     total_reward = 0.0
-    shots = ammo_collected = 0
+    shots = ammo = attributed_kills = 0
     health_collected = armor_collected = distance = 0.0
     action_counts = np.zeros(env.num_actions, dtype=int)
 
     while True:
-        action = agent.act(obs)
+        action = agent.act(obs, prev)
         action_counts[action] += 1
         next_obs, reward, done, info = env.step(action)
         total_reward += reward
 
-        # Ammo deltas are only comparable when the weapon did not change
-        if info["selected_weapon"] == prev["selected_weapon"]:
-            d_ammo = info["selected_weapon_ammo"] - prev["selected_weapon_ammo"]
-            if d_ammo < 0:
-                shots += int(-d_ammo)
-            else:
-                ammo_collected += int(d_ammo)
+        shots += shots_fired(prev, info)
+        ammo += int(ammo_collected(prev, info))
+        attributed_kills += attribution.step(prev, info)[1]
         if not info["dead"]:
             health_collected += max(0.0, info["health"] - prev["health"])
             armor_collected += max(0.0, info["armor"] - prev["armor"])
@@ -64,6 +62,7 @@ def run_episode(
         seed=seed,
         episode=episode,
         kill_count=kills,
+        attributed_kills=attributed_kills,
         died=died,
         timed_out=not died and survival_time >= env.episode_timeout,
         survival_time=survival_time,
@@ -72,8 +71,10 @@ def run_episode(
         damage_taken=info["damage_taken"],
         hits_taken=int(info["hits_taken"]),
         shots_fired=shots,
+        hits=int(info["hitcount"]),
+        damage_dealt=info["damagecount"],
         kills_per_shot=kills / shots if shots else 0.0,
-        ammo_collected=ammo_collected,
+        ammo_collected=ammo,
         health_collected=health_collected,
         armor_collected=armor_collected,
         distance_travelled=distance,

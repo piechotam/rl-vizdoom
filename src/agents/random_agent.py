@@ -27,7 +27,7 @@ class RandomAgent:
         )
         self.rng = np.random.default_rng(seed)
 
-    def act(self, observation: np.ndarray) -> int:
+    def act(self, observation: np.ndarray, info: dict) -> int:
         """Return a uniformly random allowed action index."""
         return int(self.rng.choice(self.allowed_actions))
 

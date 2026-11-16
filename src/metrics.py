@@ -19,6 +19,7 @@ class EpisodeMetrics:
     seed: int
     episode: int
     kill_count: int
+    attributed_kills: int  # kills preceded by the agent's own hit (src.reward)
     died: bool
     timed_out: bool
     survival_time: int  # tics survived
@@ -27,8 +28,10 @@ class EpisodeMetrics:
     damage_taken: float
     hits_taken: int
     shots_fired: int  # ammo spent on the selected weapon
+    hits: int  # HITCOUNT: hits dealt by the agent
+    damage_dealt: float  # DAMAGECOUNT
     kills_per_shot: float
-    ammo_collected: int
+    ammo_collected: int  # summed over distinct ammo pools
     health_collected: float
     armor_collected: float
     distance_travelled: float  # map units, XY plane
@@ -40,6 +43,7 @@ class EpisodeMetrics:
 # Numeric fields used for aggregate statistics, with display labels
 _STAT_LABELS = {
     "kill_count": "Kill Count",
+    "attributed_kills": "Attributed Kills",
     "died": "Death Rate",
     "survival_time": "Survival Time (tics)",
     "total_reward": "Total Reward",
@@ -47,6 +51,8 @@ _STAT_LABELS = {
     "damage_taken": "Damage Taken",
     "hits_taken": "Hits Taken",
     "shots_fired": "Shots Fired",
+    "hits": "Hits Dealt",
+    "damage_dealt": "Damage Dealt",
     "kills_per_shot": "Kills / Shot",
     "ammo_collected": "Ammo Collected",
     "health_collected": "Health Collected",
