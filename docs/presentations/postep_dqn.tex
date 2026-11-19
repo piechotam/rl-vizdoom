@@ -305,6 +305,215 @@
   \end{columns}
 \end{frame}
 
-%%RESULTS%%
+% ============================================================
+\renewcommand{\slidenum}{05}
+\begin{frame}{Wyniki: DQN kontra punkty odniesienia}
+  \begin{columns}[T,onlytextwidth]
+    \begin{column}{0.64\textwidth}
+      \shot{\linewidth}{img/final_comparison.pdf}{Skill 3, 100 epizodów na agenta.
+        Agenci bazowi: 5 seedów $\times$ 100 epizodów (słupki: 95\% CI).
+        DQN: \textbf{1 seed treningowy}, checkpoint \texttt{best.pt} -- przedział ufności
+        między seedami jeszcze nieznany.}
+    \end{column}
+    \begin{column}{0.32\textwidth}
+      \bignum{7,15}{zabójstw agenta na epizod (FS\,4)}{losowy: 0,14 \quad$\Rightarrow$\quad $\times$51}
+      \bignum{36,8\,s}{średnie przeżycie (FS\,4)}{losowy: 23,0\,s, bez strzelania: 28,6\,s}
+      \bignum{88\%}{zabójstw to zasługa agenta}{u agenta losowego: 7\%}
+    \end{column}
+  \end{columns}
+\end{frame}
+
+% ============================================================
+\renewcommand{\slidenum}{06}
+\begin{frame}{Krzywe uczenia: frame skip 2 / 4 / 8}
+  \centering
+  \shot{0.86\textwidth}{img/learning_curves.pdf}{Ewaluacja co 100\,tys. klatek: 10 epizodów,
+    $\varepsilon=0{,}05$, stały seed silnika. Każdy wariant: 10\,mln klatek gry, 1 seed.}
+  \vspace{1.5mm}
+  \begin{columns}[T,onlytextwidth]
+    \begin{column}{0.32\textwidth}
+      \begin{infocard}{\faTrophy}{FS 4 -- najwięcej zabójstw}
+        Rośnie do końca budżetu, bez nasycenia.
+      \end{infocard}
+    \end{column}
+    \begin{column}{0.32\textwidth}
+      \begin{infocard}{\faHeartbeat}{FS 8 -- najdłużej żyje}
+        Plateau ok. 6--7 zabójstw po 4\,mln klatek.
+      \end{infocard}
+    \end{column}
+    \begin{column}{0.32\textwidth}
+      \begin{infocard}{\faTimesCircle}{FS 2 -- porażka}
+        Utyka blisko poziomu agenta losowego.
+      \end{infocard}
+    \end{column}
+  \end{columns}
+\end{frame}
+
+% ============================================================
+\renewcommand{\slidenum}{07}
+\begin{frame}{Przebieg treningu}
+  \begin{columns}[T,onlytextwidth]
+    \begin{column}{0.64\textwidth}
+      \shot{\linewidth}{img/train_metrics.pdf}{Epizody treningowe (z eksploracją $\varepsilon$),
+        średnia krocząca ze 100 epizodów.}
+    \end{column}
+    \begin{column}{0.33\textwidth}
+      \begin{infocard}{\faRandom}{Eksploracja}
+        $\varepsilon=0{,}05$ od 2,5\,mln klatek -- koniec najszybszego wzrostu.
+      \end{infocard}
+      \begin{infocard}{\faBalanceScale}{Agresja}
+        Przeżycie FS\,4/8 szczytuje przy 4--6\,mln klatek, potem spada,
+        a zabójstwa dalej rosną.
+      \end{infocard}
+      \begin{infocard}{\faChartLine}{Shaping}
+        Nagroda kształtowana śledzi nagrodę z gry.
+      \end{infocard}
+    \end{column}
+  \end{columns}
+\end{frame}
+
+% ============================================================
+\renewcommand{\slidenum}{08}
+\begin{frame}{Ewaluacja w trakcie treningu -- wszystkie metryki}
+  \begin{columns}[T,onlytextwidth]
+    \begin{column}{0.5\textwidth}
+      \shot{\linewidth}{img/eval_metrics.pdf}{Cienka linia: surowy pomiar (10 epizodów);
+        gruba: wygładzenie EMA 0,6 jak w TensorBoard.}
+    \end{column}
+    \begin{column}{0.46\textwidth}
+      \footnotesize
+      \begin{itemize}\setlength\itemsep{1.5mm}
+        \item \textbf{Strzały}: FS\,4 po 7\,mln klatek strzela 2$\times$ więcej (ok. 115 na epizod)
+          -- stąd więcej zabójstw.
+        \item \textbf{Entropia akcji}: FS\,4/8 korzystają z wielu akcji (3,5--4 bity);
+          FS\,2 \textbf{zapada się} do 0,5--1 bita po 1\,mln klatek -- polityka
+          ogranicza się do kilku akcji.
+        \item \textbf{Limit czasu}: prawie każdy epizod kończy się śmiercią;
+          pierwsze dotrwania do końca (FS\,4) dopiero po 8,5\,mln klatek.
+      \end{itemize}
+      \vspace{1mm}
+      {\scriptsize\color{muted}\faInfoCircle\hspace{1.5mm}\texttt{HITCOUNT} może zliczać
+      więcej trafień niż strzałów (celność $>$100\% u FS\,8) -- celność traktujemy
+      jako przybliżenie.\par}
+    \end{column}
+  \end{columns}
+\end{frame}
+
+% ============================================================
+\renewcommand{\slidenum}{09}
+\begin{frame}{Składniki nagrody kształtowanej}
+  \centering
+  \shot{0.92\textwidth}{img/reward_components.pdf}{Suma składnika w epizodzie treningowym
+    (przed skalowaniem $\times0{,}1$), średnia krocząca ze 100 epizodów.}
+  \vspace{1.5mm}
+  \begin{columns}[T,onlytextwidth]
+    \begin{column}{0.32\textwidth}
+      \begin{infocard}{\faCrosshairs}{Walka dominuje}
+        Zabójstwa i obrażenia -- największe i rosną do końca.
+      \end{infocard}
+    \end{column}
+    \begin{column}{0.32\textwidth}
+      \begin{infocard}{\faFirstAid}{Zbieranie znika}
+        Zdrowie i pancerz: szczyt przy 4--5\,mln klatek, potem spadek.
+      \end{infocard}
+    \end{column}
+    \begin{column}{0.32\textwidth}
+      \begin{infocard}{\faBullseye}{Koszt agresji}
+        FS\,4: rosnąca kara za chybienia -- strzela częściej.
+      \end{infocard}
+    \end{column}
+  \end{columns}
+\end{frame}
+
+% ============================================================
+\renewcommand{\slidenum}{10}
+\begin{frame}{Odporność na poziom trudności}
+  \centering
+  \shot{0.82\textwidth}{img/skill_comparison.pdf}{Wszystkie agenty DQN trenowane wyłącznie
+    na skill 3; ewaluacja 100 epizodów na każdym poziomie.}
+  \vspace{1mm}
+  \begin{columns}[T,onlytextwidth]
+    \begin{column}{0.52\textwidth}
+      \scriptsize
+      \renewcommand{\arraystretch}{1.05}
+      \begin{tabular}{@{}l>{\raggedleft\arraybackslash}p{13mm}>{\raggedleft\arraybackslash}p{13mm}>{\raggedleft\arraybackslash}p{13mm}@{}}
+        \toprule
+        \textbf{Zabójstwa agenta} & \textbf{skill 1} & \textbf{skill 3} & \textbf{skill 5} \\
+        \midrule
+        DQN FS\,2 & 3,07 & 1,61 & 1,06 \\
+        DQN FS\,4 & \textbf{14,97} & \textbf{7,15} & 4,88 \\
+        DQN FS\,8 & 13,18 & 6,34 & \textbf{6,32} \\
+        losowy & 0,46 & 0,14 & 0,12 \\
+        \bottomrule
+      \end{tabular}
+    \end{column}
+    \begin{column}{0.44\textwidth}
+      \begin{infocard}{\faMountain}{FS 8 najstabilniejszy}
+        Na skill 5 nie traci zabójstw i żyje 36,7\,s (FS\,4: 31,0\,s).
+      \end{infocard}
+    \end{column}
+  \end{columns}
+\end{frame}
+
+% ============================================================
+\renewcommand{\slidenum}{11}
+\begin{frame}{Czego nauczył się agent}
+  \begin{columns}[T,onlytextwidth]
+    \begin{column}{0.4\textwidth}
+      \centering
+      \shot{0.85\linewidth}{img/action_histogram.pdf}{Udział akcji, FS\,4, skill 3.}
+    \end{column}
+    \begin{column}{0.56\textwidth}
+      \footnotesize
+      \begin{itemize}\setlength\itemsep{1.5mm}
+        \item \textbf{Sprint + przód + obrót w lewo} (20\%) i \textbf{obrót w lewo + strzał} (16\%):
+          krąży po arenie i obraca się, dopóki wróg nie wejdzie w celownik.
+        \item Wyraźna \textbf{asymetria}: obrót w lewo dużo częściej niż w prawo.
+        \item Strzał prawie zawsze \textbf{łączony z ruchem lub obrotem}; zmiana broni -- praktycznie nigdy.
+        \item Entropia akcji 3,6 bita wobec 4,8 u agenta losowego: polityka skupiona,
+          ale nie zdegenerowana.
+      \end{itemize}
+      \vspace{2mm}
+      \tcbox[colback=accent,colframe=accent,coltext=white,arc=1.5mm,boxsep=1.5mm,left=2mm,right=2mm,top=0.5mm,bottom=0.5mm]
+        {\href{run:media/dqn_fs4_skill3_best.mp4}{\small\faPlay\hspace{2mm}\textbf{Odtwórz film} \footnotesize(media/dqn\_fs4\_skill3\_best.mp4)}}
+
+      {\scriptsize\color{muted}Najlepszy z 10 nagranych epizodów (nie typowy!):
+      41 zabójstw agenta, 102\,s przeżycia. Średnio: 7,15 zabójstw i 36,8\,s.\par}
+    \end{column}
+  \end{columns}
+\end{frame}
+
+% ============================================================
+\renewcommand{\slidenum}{12}
+\begin{frame}{Wnioski i dalsze kroki}
+  \begin{columns}[T,onlytextwidth]
+    \begin{column}{0.48\textwidth}
+      {\small\textbf{Wnioski}\par}\vspace{1mm}
+      \footnotesize
+      \begin{itemize}\setlength\itemsep{1.5mm}
+        \item DQN uczy się realnej walki: \textbf{51$\times$ więcej} zabójstw niż agent losowy,
+          88\% zabójstw to jego zasługa.
+        \item \textbf{FS\,4} -- najwięcej zabójstw; \textbf{FS\,8} -- najdłuższe przeżycie
+          i najlepsza odporność na skill 5; \textbf{FS\,2} -- nie nauczył się.
+        \item Po 10\,mln klatek FS\,4 wciąż się poprawia -- budżet jest ograniczeniem.
+        \item Agent rezygnuje ze zbierania przedmiotów na rzecz agresji;
+          prawie zawsze ginie przed końcem epizodu.
+      \end{itemize}
+    \end{column}
+    \begin{column}{0.48\textwidth}
+      {\small\textbf{Dalsze kroki}\par}\vspace{1mm}
+      \begin{infocard}{\faSeedling}{Więcej seedów}
+        Co najmniej 3 seedy na wariant -- dziś różnice FS\,4 vs FS\,8 mogą być szumem.
+      \end{infocard}
+      \begin{infocard}{\faSearch}{Diagnoza FS 2}
+        Zapaść entropii po 1\,mln klatek: przy FS\,2 cel 3-krokowy obejmuje tylko 6 tików,
+        a aktualizacji na klatkę gry jest 2$\times$ więcej.
+      \end{infocard}
+      \begin{infocard}{\faForward}{Dłuższy trening FS 4}
+        Krzywe nie wysyciły się -- sprawdzić 15--20\,mln klatek.
+      \end{infocard}
+    \end{column}
+  \end{columns}
+\end{frame}
 
 \end{document}

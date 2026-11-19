@@ -396,17 +396,22 @@ def plot_skill(results: Path, out: Path) -> None:
                 values[k].append(s["across_seeds"][k]["mean"] * scale)
         return skills, values
 
-    fs4 = results / "dqn" / "fs4"
-    dqn = series(lambda k: fs4 / f"eval_skill{k}")
-    rnd = series(lambda k: results / "random" / ("" if k == 3 else f"skill{k}"))
-    if len(dqn[0]) < 2:
+    lines = [
+        (
+            series(lambda k, d=d: d / f"eval_skill{k}"),
+            FS_COLORS.get(fs, INK),
+            "-",
+            f"DQN FS {fs}",
+        )
+        for fs, d in fs_dirs(results).items()
+    ]
+    if not any(len(skills) >= 2 for (skills, _), *_ in lines):
         return
+    rnd = series(lambda k: results / "random" / ("" if k == 3 else f"skill{k}"))
+    lines.append((rnd, RANDOM_COLOR, "--", "losowy"))
     fig, axes = plt.subplots(1, 3, figsize=(10, 2.8))
     for ax, (key, (title, _)) in zip(axes, BAR_METRICS.items(), strict=True):
-        for (skills, values), color, ls, label in (
-            (dqn, DQN_COLOR, "-", "DQN (FS 4, trenowany na skill 3)"),
-            (rnd, RANDOM_COLOR, "--", "losowy"),
-        ):
+        for (skills, values), color, ls, label in lines:
             if skills:
                 ax.plot(
                     skills,
@@ -423,7 +428,13 @@ def plot_skill(results: Path, out: Path) -> None:
         ax.set_xticks(range(1, 6))
         ax.set_ylim(bottom=0)
     handles, labels = axes[0].get_legend_handles_labels()
-    fig.legend(handles, labels, loc="lower center", ncol=2, bbox_to_anchor=(0.5, -0.1))
+    fig.legend(
+        handles,
+        labels,
+        loc="lower center",
+        ncol=len(labels),
+        bbox_to_anchor=(0.5, -0.1),
+    )
     fig.tight_layout()
     save(fig, out, "skill_comparison")
 
