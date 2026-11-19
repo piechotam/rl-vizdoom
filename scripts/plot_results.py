@@ -245,7 +245,7 @@ def plot_skill(results: Path, out: Path) -> None:
         return skills, values
 
     fs4 = results / "dqn" / "fs4"
-    dqn = series(lambda k: fs4 / ("eval" if k == 3 else f"eval_skill{k}"))
+    dqn = series(lambda k: fs4 / f"eval_skill{k}")
     rnd = series(lambda k: results / "random" / ("" if k == 3 else f"skill{k}"))
     if len(dqn[0]) < 2:
         return
