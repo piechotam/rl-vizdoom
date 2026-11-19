@@ -184,6 +184,158 @@ def plot_train_reward(results: Path, out: Path, window: int = 100) -> None:
     save(fig, out, "train_reward")
 
 
+# --- TensorBoard-style grids (eval/*, train/*) -----------------------------
+
+
+def ema(y: np.ndarray, weight: float = 0.6) -> np.ndarray:
+    """Exponential moving average, as TensorBoard's smoothing slider."""
+    out = np.empty(len(y))
+    last = y[0]
+    for i, v in enumerate(y):
+        last = weight * last + (1 - weight) * v
+        out[i] = last
+    return out
+
+
+def rolling(r: np.ndarray, window: int) -> tuple[np.ndarray, int]:
+    k = min(window, len(r))
+    return np.convolve(r, np.ones(k) / k, mode="valid"), k
+
+
+def grid_figure(n: int, ncols: int) -> tuple[Figure, list]:
+    nrows = -(-n // ncols)
+    fig, axes = plt.subplots(nrows, ncols, figsize=(3.3 * ncols, 2.4 * nrows))
+    axes = list(np.ravel(axes))
+    for ax in axes[n:]:
+        ax.set_visible(False)
+    return fig, axes[:n]
+
+
+def finish_grid(fig: Figure, axes: list, name: str, out: Path) -> None:
+    for ax in axes:
+        ax.set_xlabel("klatki gry [mln]")
+    handles, labels = axes[0].get_legend_handles_labels()
+    fig.legend(handles, labels, loc="lower center", ncol=len(labels))
+    fig.tight_layout(rect=(0, 0.05, 1, 1))
+    save(fig, out, name)
+
+
+def accuracy(s: dict[str, np.ndarray]) -> np.ndarray:
+    return np.divide(
+        s["hits"] * 100, s["shots"], out=np.zeros_like(s["hits"]), where=s["shots"] > 0
+    )
+
+
+EVAL_PANELS = {
+    "Zabójstwa przypisane agentowi": lambda s: s["attributed_kills"],
+    "Wszystkie zabójstwa": lambda s: s["kills"],
+    "Przeżycie [s]": lambda s: s["survival_s"],
+    "Nagroda z gry": lambda s: s["game_reward"],
+    "Trafienia": lambda s: s["hits"],
+    "Strzały": lambda s: s["shots"],
+    "Celność [%]": accuracy,
+    "Entropia akcji": lambda s: s["action_entropy"],
+    "Odsetek epizodów do limitu czasu": lambda s: s["timeout_rate"],
+}
+
+
+def plot_eval_metrics(results: Path, out: Path) -> None:
+    """Every ``eval/*`` scalar: raw (thin) and EMA-smoothed (bold)."""
+    runs = {
+        fs: [read_csv(p) for p in sorted(d.glob("seed*/eval.csv"))]
+        for fs, d in fs_dirs(results).items()
+    }
+    runs = {fs: r for fs, r in runs.items() if r}
+    if not runs:
+        return
+    fig, axes = grid_figure(len(EVAL_PANELS), 3)
+    for ax, (title, get) in zip(axes, EVAL_PANELS.items(), strict=True):
+        for fs, seeds in runs.items():
+            n = min(len(s["frames"]) for s in seeds)
+            x = seeds[0]["frames"][:n] / 1e6
+            y = np.stack([get(s)[:n] for s in seeds]).mean(0)
+            color = FS_COLORS.get(fs, INK)
+            ax.plot(x, y, color=color, lw=0.6, alpha=0.3)
+            ax.plot(x, ema(y), color=color, lw=1.8, label=f"FS {fs}")
+        ax.set_title(title, fontsize=9, color=INK, loc="left")
+    finish_grid(fig, axes, "eval_metrics", out)
+
+
+TRAIN_PANELS = {
+    "shaped_reward": "Nagroda kształtowana",
+    "game_reward": "Nagroda z gry",
+    "attributed_kills": "Zabójstwa przypisane agentowi",
+    "kills": "Wszystkie zabójstwa",
+    "survival_s": "Przeżycie [s]",
+    "epsilon": "Epsilon (eksploracja)",
+}
+
+REWARD_PANELS = {
+    "r_kill": "Zabójstwo",
+    "r_damage_dealt": "Zadane obrażenia",
+    "r_hit": "Trafienie",
+    "r_missed_shot": "Chybiony strzał",
+    "r_health_lost": "Utrata zdrowia",
+    "r_death": "Śmierć",
+    "r_health_gained": "Zebrane zdrowie",
+    "r_armor_collected": "Zebrany pancerz",
+    "r_ammo_collected": "Zebrana amunicja",
+    "r_distance": "Przebyty dystans",
+}
+
+
+def plot_train_grid(
+    results: Path,
+    out: Path,
+    panels: dict[str, str],
+    name: str,
+    ncols: int,
+    window: int = 100,
+) -> None:
+    """Per-episode ``train/*`` scalars, rolling mean over ``window`` episodes."""
+    runs = {
+        fs: [read_csv(p) for p in sorted(d.glob("seed*/train_episodes.csv"))]
+        for fs, d in fs_dirs(results).items()
+    }
+    runs = {fs: r for fs, r in runs.items() if r}
+    if not runs:
+        return
+    fig, axes = grid_figure(len(panels), ncols)
+    for ax, (key, title) in zip(axes, panels.items(), strict=True):
+        for fs, seeds in runs.items():
+            grid = np.linspace(0, max(s["frames"].max() for s in seeds), 300)
+            curves = []
+            for s in seeds:
+                smooth, k = rolling(s[key], window)
+                curves.append(
+                    np.interp(grid, s["frames"][k - 1 :], smooth, right=np.nan)
+                )
+            ax.plot(
+                grid / 1e6,
+                np.nanmean(np.stack(curves), 0),
+                color=FS_COLORS.get(fs, INK),
+                lw=1.8,
+                label=f"FS {fs}",
+            )
+        ax.set_title(title, fontsize=9, color=INK, loc="left")
+    fig.suptitle(
+        f"Trening: średnia krocząca z {window} epizodów",
+        fontsize=9,
+        color=MUTED,
+        x=0.01,
+        ha="left",
+    )
+    finish_grid(fig, axes, name, out)
+
+
+def plot_train_metrics(results: Path, out: Path) -> None:
+    plot_train_grid(results, out, TRAIN_PANELS, "train_metrics", ncols=3)
+
+
+def plot_reward_components(results: Path, out: Path) -> None:
+    plot_train_grid(results, out, REWARD_PANELS, "reward_components", ncols=5)
+
+
 # --- final evaluation ------------------------------------------------------
 
 BAR_METRICS = {
@@ -203,7 +355,7 @@ def plot_final_comparison(results: Path, out: Path) -> None:
         if s:
             entries.append((label, color, s))
     for fs, d in fs_dirs(results).items():
-        s = read_summary(d / "eval" / "summary.json")
+        s = read_summary(d / "eval_skill3" / "summary.json")
         if s:
             entries.append((f"DQN FS {fs}", FS_COLORS.get(fs, INK), s))
     if not any(label.startswith("DQN") for label, _, _ in entries):
@@ -284,7 +436,7 @@ def plot_actions(results: Path, out: Path) -> None:
         total = sum(s.values())
         return {k: v / total for k, v in s.items()}
 
-    dqn = load(results / "dqn" / "fs4" / "eval" / "action_counts.json")
+    dqn = load(results / "dqn" / "fs4" / "eval_skill3" / "action_counts.json")
     rnd = load(results / "random" / "action_counts.json")
     if dqn is None:
         return
@@ -319,6 +471,9 @@ def main() -> None:
     for plot in (
         plot_learning_curves,
         plot_train_reward,
+        plot_eval_metrics,
+        plot_train_metrics,
+        plot_reward_components,
         plot_final_comparison,
         plot_skill,
         plot_actions,
